@@ -6,6 +6,7 @@ using MinimalApi;
 using MinimalApi.Model;
 using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
+using Microsoft.AspNetCore.Authorization;
 
 ;
 var builder = WebApplication.CreateBuilder(args);
@@ -27,6 +28,7 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme).AddJw
         ValidateIssuerSigningKey = true,
         ValidIssuer = builder.Configuration["Jwt:Issuer"],
         ValidAudience = builder.Configuration["Jwt:Audience"],
+        ClockSkew = TimeSpan.Zero,
         IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(builder.Configuration["Jwt:Key"]))
     };
 });
@@ -50,6 +52,21 @@ app.UseAuthorization();
 // Våra apier lägger vi här
 
 
+app.MapPost("/register", async (User user, DataContext db) => {
+
+    // Kolla ifall alla obligatoriska fält är ifyllda.
+
+    // Validera mejlen
+
+    // Dubbelkolla att det inte existerar en användare med samma mejl.
+
+    db.Users.Add(user);
+    await db.SaveChangesAsync();
+
+    return Results.Ok("User registered!");
+
+});
+
 app.MapPost("/login", async (UserLogin userLogin, DataContext db) => {
 
     User? user = await db.Users.FirstOrDefaultAsync(u => u.Email.Equals(userLogin.Email) && u.Password.Equals(userLogin.Password));
@@ -61,7 +78,7 @@ app.MapPost("/login", async (UserLogin userLogin, DataContext db) => {
     var secretkey = builder.Configuration["Jwt:Key"];
 
     if (secretkey == null) {
-        return Results.Conflict();
+        return Results.StatusCode(500);
     }
 
     var claims = new[]
@@ -119,7 +136,7 @@ app.MapGet("/todoItems/{id}", async (int id, DataContext db) =>
 });
 
 // Lägger upp en Todo i våran tabell
-app.MapPost("/todoItems", async (Todo todo, DataContext db) =>
+app.MapPost("/todoItems", [Authorize(AuthenticationSchemes = JwtBearerDefaults.AuthenticationScheme, Roles = "Administrator")] async (Todo todo, DataContext db) =>
 {
 
     db.Todos.Add(todo);
