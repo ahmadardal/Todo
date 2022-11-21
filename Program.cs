@@ -4,6 +4,9 @@ using Microsoft.IdentityModel.Tokens;
 using System.Text;
 using MinimalApi;
 using MinimalApi.Model;
+using System.IdentityModel.Tokens.Jwt;
+using System.Security.Claims;
+
 ;
 var builder = WebApplication.CreateBuilder(args);
 
@@ -47,7 +50,45 @@ app.UseAuthorization();
 // Våra apier lägger vi här
 
 
+app.MapPost("/login", async (UserLogin userLogin, DataContext db) => {
 
+    User? user = await db.Users.FirstOrDefaultAsync(u => u.Email.Equals(userLogin.Email) && u.Password.Equals(userLogin.Password));
+
+    if (user == null) {
+        return Results.NotFound();
+    }
+
+    var secretkey = builder.Configuration["Jwt:Key"];
+
+    if (secretkey == null) {
+        return Results.Conflict();
+    }
+
+    var claims = new[]
+    {
+        new Claim(ClaimTypes.NameIdentifier, user.Name),
+        new Claim(ClaimTypes.Email, user.Email),
+        new Claim(ClaimTypes.GivenName, user.Name),
+        new Claim(ClaimTypes.Surname, user.Name),
+        new Claim(ClaimTypes.Role, user.Role)
+    };
+
+    var token = new JwtSecurityToken
+    (
+        issuer: builder.Configuration["Jwt:Issuer"],
+        audience: builder.Configuration["Jwt:Audience"],
+        claims: claims,
+        expires: DateTime.UtcNow.AddMinutes(5),
+        notBefore: DateTime.UtcNow,
+        signingCredentials: new SigningCredentials(new SymmetricSecurityKey(Encoding.UTF8.GetBytes(secretkey)),
+        SecurityAlgorithms.HmacSha256)
+    );
+
+    var tokenString = new JwtSecurityTokenHandler().WriteToken(token);
+
+    return Results.Ok(tokenString);
+
+});
 
 
 // Hämtar alla Todo's i våran tabell
