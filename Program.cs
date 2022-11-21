@@ -1,12 +1,14 @@
 using Microsoft.EntityFrameworkCore;
-
+using MinimalApi;
+using MinimalApi.Model;
+;
 var builder = WebApplication.CreateBuilder(args);
 
 // Add services to the container.
 // Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
-builder.Services.AddDbContext<TodoDb>(opt => opt.UseInMemoryDatabase("TodoList"));
+builder.Services.AddDbContext<DataContext>(opt => opt.UseInMemoryDatabase("TodoList"));
 builder.Services.AddDatabaseDeveloperPageExceptionFilter();
 
 var app = builder.Build();
@@ -23,19 +25,19 @@ app.UseHttpsRedirection();
 // Våra apier lägger vi här
 
 // Hämtar alla Todo's i våran tabell
-app.MapGet("/todoItems", async (TodoDb db) =>
+app.MapGet("/todoItems", async (DataContext db) =>
 {
     return await db.Todos.ToListAsync();
 });
 
-app.MapGet("/todoItems/complete", async (TodoDb db) => 
+app.MapGet("/todoItems/complete", async (DataContext db) => 
 {
 
     return await db.Todos.Where(todo => todo.isComplete).ToListAsync();
 
 });
 
-app.MapGet("/todoItems/{id}", async (int id, TodoDb db) =>
+app.MapGet("/todoItems/{id}", async (int id, DataContext db) =>
 {
 
     var todo = await db.Todos.FindAsync(id);
@@ -50,7 +52,7 @@ app.MapGet("/todoItems/{id}", async (int id, TodoDb db) =>
 });
 
 // Lägger upp en Todo i våran tabell
-app.MapPost("/todoItems", async (Todo todo, TodoDb db) =>
+app.MapPost("/todoItems", async (Todo todo, DataContext db) =>
 {
 
     db.Todos.Add(todo);
@@ -60,7 +62,7 @@ app.MapPost("/todoItems", async (Todo todo, TodoDb db) =>
 
 });
 
-app.MapPut("/todoItems/{id}", async (int id, Todo updatedTodo, TodoDb db) =>
+app.MapPut("/todoItems/{id}", async (int id, Todo updatedTodo, DataContext db) =>
 {
 
     var todo = await db.Todos.FindAsync(id);
@@ -79,7 +81,7 @@ app.MapPut("/todoItems/{id}", async (int id, Todo updatedTodo, TodoDb db) =>
 });
 
 
-app.MapDelete("/todoItems/{id}", async (int id, TodoDb db) =>
+app.MapDelete("/todoItems/{id}", async (int id, DataContext db) =>
 {
 
     var todo = await db.Todos.FindAsync(id);
@@ -115,18 +117,3 @@ app.MapPost("/book/{name}", (string name) =>
 
 
 app.Run();
-
-
-class Todo
-{
-    public int id { get; set; }
-    public string? Name { get; set; }
-    public bool isComplete { get; set; }
-}
-
-class TodoDb : DbContext
-{
-    public TodoDb(DbContextOptions<TodoDb> options) : base(options) { }
-
-    public DbSet<Todo> Todos => Set<Todo>();
-}
